@@ -1,6 +1,6 @@
 # patch-based-texture-inpainting
 
-Based on "Image Quilting for Texture Synthesis and Transfer" and "Real-Time Texture Synthesis by Patch-Based Sampling" papers and from the implementation of nopara https://github.com/anopara/patch-based-texture-synthesis.
+Based on "Image Quilting for Texture Synthesis and Transfer" and "Real-Time Texture Synthesis by Patch-Based Sampling" papers and from the implementation of anopara https://github.com/anopara/patch-based-texture-synthesis.
 
 ## Usage
 * image: the image to inpaint
@@ -17,6 +17,6 @@ Based on "Image Quilting for Texture Synthesis and Transfer" and "Real-Time Text
 ## To Do 
 * Clean the implementation
 * Finish the implementation (see TO DO in code).
-* Improve the algorithm at the border of the image.
 * Take a list of rect
 * Take a rect area for the training to speed-up for large images
+* Filling the hole by spiral order
