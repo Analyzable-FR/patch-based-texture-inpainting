@@ -77,71 +77,16 @@ class Inpaint:
             result = np.concatenate((result, vert_result))
         return result
 
-    # TODO: squash all the conditions in one loop by taking one list with overlaps and one list of bools [top, bottom, left, right]
-    def get_combined_overlap(self, top, bottom, left, right):
-        shape = max(np.shape(top), np.shape(left))
-        if top is not None and bottom is None and left is not None and right is None:
-            if len(shape) > 1:
-                combined = np.zeros((shape[0], shape[1]*2))
-                combined[0:shape[0], 0:shape[1]] = top
-                combined[0:shape[0], shape[1]:shape[1]*2] = left
-            else:
-                combined = np.zeros((shape[0]*2))
-                combined[0:shape[0]] = top
-                combined[shape[0]:shape[0]*2] = left
-        elif top is not None and bottom is None and left is not None and right is not None :
-            if len(shape) > 1:
-                combined = np.zeros((shape[0], shape[1]*3))
-                combined[0:shape[0], 0:shape[1]] = top
-                combined[0:shape[0], shape[1]:shape[1]*2] = left
-                combined[0:shape[0], shape[1]*2:shape[1]*3] = right
-            else:
-                combined = np.zeros((shape[0]*3))
-                combined[0:shape[0]] = top
-                combined[shape[0]:shape[0]*2] = left
-                combined[shape[0]*2:shape[0]*3] = right
-        elif top is not None and bottom is not None and left is not None and right is None :
-            if len(shape) > 1:
-                combined = np.zeros((shape[0], shape[1]*3))
-                combined[0:shape[0], 0:shape[1]] = top
-                combined[0:shape[0], shape[1]:shape[1]*2] = bottom
-                combined[0:shape[0], shape[1]*2:shape[1]*3] = left
-            else:
-                combined = np.zeros((shape[0]*3))
-                combined[0:shape[0]] = top
-                combined[shape[0]:shape[0]*2] = bottom
-                combined[shape[0]*2:shape[0]*3] = left
-        elif top is not None and bottom is not None and left is None and right is None :
-            if len(shape) > 1:
-                combined = np.zeros((shape[0], shape[1]*2))
-                combined[0:shape[0], 0:shape[1]] = top
-                combined[0:shape[0], shape[1]:shape[1]*2] = bottom
-            else:
-                combined = np.zeros((shape[0]*2))
-                combined[0:shape[0]] = top
-                combined[shape[0]:shape[0]*2] = bottom
-        elif top is None and bottom is None and left is not None and right is not None :
-            if len(shape) > 1:
-                combined = np.zeros((shape[0], shape[1]*2))
-                combined[0:shape[0], 0:shape[1]] = left
-                combined[0:shape[0], shape[1]:shape[1]*2] = right
-            else:
-                combined = np.zeros((shape[0]*2))
-                combined[0:shape[0]] = left
-                combined[shape[0]:shape[0]*2] = right
+    def get_combined_overlap(self, overlaps):
+        shape = np.shape(overlaps[0])
+        if len(shape) > 1:
+            combined = np.zeros((shape[0], shape[1]*len(overlaps)))
+            for i, j in enumerate(overlaps):
+                combined[0:shape[0], shape[1]*i:shape[1]*(i+1)] = j
         else:
-            if len(shape) > 1:
-                combined = np.zeros((shape[0], shape[1]*4))
-                combined[0:shape[0], 0:shape[1]] = top
-                combined[0:shape[0], shape[1]:shape[1]*2] = bottom
-                combined[0:shape[0], shape[1]*2:shape[1]*3] = left
-                combined[0:shape[0], shape[1]*3:shape[1]*4] = right
-            else:
-                combined = np.zeros((shape[0]*4))
-                combined[0:shape[0]] = top
-                combined[shape[0]:shape[0]*2] = bottom
-                combined[shape[0]*2:shape[0]*3] = left
-                combined[shape[0]*3:shape[0]*4] = right
+            combined = np.zeros((shape[0]*len(overlaps)))
+            for i, j in enumerate(overlaps):
+                combined[shape[0]*i:shape[0]*(i+1)] = j
         return combined
 
     def init_KDtrees(self):
@@ -160,12 +105,12 @@ class Inpaint:
         flatten_left = left_overlap.reshape(shape_left[0], -1)
         flatten_right = right_overlap.reshape(shape_right[0], -1)
 
-        flatten_combined_4 = self.get_combined_overlap(flatten_top, flatten_bottom, flatten_left, flatten_right)
-        flatten_combined_3 = self.get_combined_overlap(flatten_top, None, flatten_left, flatten_right)
-        flatten_combined_3_bis = self.get_combined_overlap(flatten_top, flatten_bottom, flatten_left, None)
-        flatten_combined_2 = self.get_combined_overlap(flatten_top, None, flatten_left, None)
-        flatten_combined_2_bis = self.get_combined_overlap(flatten_top, flatten_bottom, None, None)
-        flatten_combined_2_bis_1 = self.get_combined_overlap(None, None, flatten_left, flatten_right)
+        flatten_combined_4 = self.get_combined_overlap([flatten_top, flatten_bottom, flatten_left, flatten_right])
+        flatten_combined_3 = self.get_combined_overlap([flatten_top, flatten_left, flatten_right])
+        flatten_combined_3_bis = self.get_combined_overlap([flatten_top, flatten_bottom, flatten_left])
+        flatten_combined_2 = self.get_combined_overlap([flatten_top, flatten_left])
+        flatten_combined_2_bis = self.get_combined_overlap([flatten_top, flatten_bottom])
+        flatten_combined_2_bis_1 = self.get_combined_overlap([flatten_left, flatten_right])
 
         tree_top = KDTree(flatten_top)
         tree_bottom = KDTree(flatten_bottom)
@@ -182,26 +127,26 @@ class Inpaint:
     # TODO: squash all the conditions in one loop by taking one list with overlaps and one list of bools [top, bottom, left, right]
     def find_most_similar_patches(self, overlap_top, overlap_bottom, overlap_left, overlap_right, k=5):
         if (overlap_top is not None) and (overlap_bottom is not None) and (overlap_left is not None) and (overlap_right is not None):
-            combined = self.get_combined_overlap(overlap_top.reshape(-1), overlap_bottom.reshape(-1), overlap_left.reshape(-1), overlap_right.reshape(-1))
+            combined = self.get_combined_overlap([overlap_top.reshape(-1), overlap_bottom.reshape(-1), overlap_left.reshape(-1), overlap_right.reshape(-1)])
             dist, ind = self.kdtree[4].query([combined], k=k)
         elif (overlap_top is not None) and (overlap_bottom is None) and (overlap_left is not None) and (overlap_right is not None):
-            combined = self.get_combined_overlap(overlap_top.reshape(-1), None, overlap_left.reshape(-1), overlap_right.reshape(-1))
+            combined = self.get_combined_overlap([overlap_top.reshape(-1), overlap_left.reshape(-1), overlap_right.reshape(-1)])
             dist, ind = self.kdtree[5].query([combined], k=k)
         elif (overlap_top is not None) and (overlap_bottom is not None) and (overlap_left is not None) and (overlap_right is None):
-            combined = self.get_combined_overlap(overlap_top.reshape(-1), overlap_bottom.reshape(-1), overlap_left.reshape(-1), None)
+            combined = self.get_combined_overlap([overlap_top.reshape(-1), overlap_bottom.reshape(-1), overlap_left.reshape(-1)])
             dist, ind = self.kdtree[7].query([combined], k=k)
         elif (overlap_top is not None) and (overlap_bottom is None) and (overlap_left is not None) and (overlap_right is None):
-            combined = self.get_combined_overlap(overlap_top.reshape(-1), None, overlap_left.reshape(-1), None)
+            combined = self.get_combined_overlap([overlap_top.reshape(-1), overlap_left.reshape(-1)])
             dist, ind = self.kdtree[6].query([combined], k=k)
         elif (overlap_top is not None) and (overlap_bottom is None) and (overlap_left is None) and (overlap_right is None):
             dist, ind = self.kdtree[0].query([overlap_top.reshape(-1)], k=k)
         elif (overlap_top is None) and (overlap_bottom is None) and (overlap_left is not None) and (overlap_right is None):
             dist, ind = self.kdtree[2].query([overlap_left.reshape(-1)], k=k)
         elif (overlap_top is not None) and (overlap_bottom is not None) and (overlap_left is None) and (overlap_right is None):
-            combined = self.get_combined_overlap(overlap_top.reshape(-1), overlap_bottom.reshape(-1), None, None)
+            combined = self.get_combined_overlap([overlap_top.reshape(-1), overlap_bottom.reshape(-1)])
             dist, ind = self.kdtree[8].query([combined], k=k)
         elif (overlap_top is None) and (overlap_bottom is None) and (overlap_left is not None) and (overlap_right is not None):
-            combined = self.get_combined_overlap(None, None, overlap_left.reshape(-1), overlap_right.reshape(-1))
+            combined = self.get_combined_overlap([overlap_left.reshape(-1), overlap_right.reshape(-1)])
             dist, ind = self.kdtree[9].query([combined], k=k)
         elif (overlap_top is None) and (overlap_bottom is None) and (overlap_left is None) and (overlap_right is None):
             dist, ind = [None], [0]
