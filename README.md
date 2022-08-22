@@ -11,6 +11,7 @@ Based on "Image Quilting for Texture Synthesis and Transfer" and "Real-Time Text
 ## Example
 ![alt text](assets/2.gif)
 ![alt text](assets/3.gif)
+![alt text](assets/1.gif)
 
 
 

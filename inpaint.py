@@ -12,7 +12,7 @@ from skimage.util.shape import view_as_windows
 
 class Inpaint:
 
-    def __init__(self, image, rect, patch_size, overlap_size, window_step=5, mirror_hor = True, mirror_vert = True):
+    def __init__(self, image, rect, patch_size, overlap_size, window_step=5, mirror_hor = True, mirror_vert = True, method="linear"):
 
         self.image = np.float32(image)
         self.output = np.zeros_like(image)
@@ -22,6 +22,7 @@ class Inpaint:
         self.mirror_vert = mirror_vert
         self.total_patches_count = 0
         self.window_step = window_step
+        self.method = method
         self.iter = 0
 
         self.rect = rect
@@ -59,6 +60,7 @@ class Inpaint:
                 delete.append(i)
         result = np.delete(result, delete, axis=0)
         self.image[self.rect_ori[1]:self.rect_ori[1]+self.rect_ori[3], self.rect_ori[0]:self.rect_ori[0]+self.rect_ori[2], :] = 0
+        self.image[self.rect[1]:self.rect[1]+self.rect[3], self.rect[0]:self.rect[0]+self.rect[2], :] = 0
 
         shape = np.shape(result)
         self.total_patches_count = shape[0]
@@ -198,12 +200,20 @@ class Inpaint:
                 else:
                     patch_id = np.random.choice(1, self.total_patches_count)
 
-                self.output[y:y+self.patch_size+2*self.overlap_size, x:x+self.patch_size+2*self.overlap_size, :] = self.example_patches[patch_id[0],:,:,:]
+                self.output[y:y+self.patch_size+2*self.overlap_size, x:x+self.patch_size+2*self.overlap_size, :] = self.merge(self.output[y:y+self.patch_size+2*self.overlap_size, x:x+self.patch_size+2*self.overlap_size, :], self.example_patches[patch_id[0],:,:,:], method=self.method)
                 x0 += self.patch_size + self.overlap_size
             x0 = self.rect[0] - self.overlap_size
             y0 += self.patch_size + self.overlap_size
-        self.image[self.rect[1]:self.rect[1]+self.rect[3], self.rect[0]:self.rect[0]+self.rect[2], :] = self.output[self.rect[1]:self.rect[1]+self.rect[3], self.rect[0]:self.rect[0]+self.rect[2], :]
+        self.image[self.rect[1] - self.overlap_size:self.rect[1]+self.rect[3] + self.overlap_size, self.rect[0] - self.overlap_size:self.rect[0]+self.rect[2] + self.overlap_size, :] = self.merge(self.image[self.rect[1]- self.overlap_size:self.rect[1]+self.rect[3] + self.overlap_size, self.rect[0]- self.overlap_size:self.rect[0]+self.rect[2] + self.overlap_size, :], self.output[self.rect[1]- self.overlap_size:self.rect[1]+self.rect[3] + self.overlap_size, self.rect[0]- self.overlap_size:self.rect[0]+self.rect[2] + self.overlap_size, :], method=self.method)
         return np.uint8(self.image)
+
+    def merge(self, image_0, image_1, method="linear"):
+        if method == "linear":
+            non_zeros = tuple([(image_0 != 0) | (image_1 != 0)])
+            image_0[non_zeros] = (image_0[non_zeros] + image_1[non_zeros]) / ((image_0[non_zeros] != 0).astype(float)+(image_1[non_zeros] != 0).astype(float))
+        else:
+            image_0 = image_1
+        return image_0
 
 
     def distances2probability(self, distances, PARM_truncation, PARM_attenuation):
