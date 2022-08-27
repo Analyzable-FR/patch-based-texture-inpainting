@@ -1,5 +1,5 @@
 import cv2
-from inpaint import *
+from patch_based_inpainting.inpaint import *
 import matplotlib.pyplot as plt
 import imageio
 

@@ -2,5 +2,5 @@ imageio~=2.21.1
 matplotlib~=3.5.3
 numpy~=1.23.0
 scikit_learn~=1.1.2
-skimage~=0.0
+scikit-image~=0.0
 opencv-python~=4.6.0
