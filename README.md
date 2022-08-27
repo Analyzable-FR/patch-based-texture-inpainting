@@ -4,7 +4,7 @@ Based on "Image Quilting for Texture Synthesis and Transfer" and "Real-Time Text
 
 ## Usage
 * image: the image to inpaint
-* rect: (x0, y0, width, height) the area to inpaint
+* mask: all pixels > 0 would be inpainted
 * patch_size: the size of patches that will be used to inpaint
 * overlap_size: the size of the area to find similarity
 

@@ -12,7 +12,7 @@ from skimage.util.shape import view_as_windows
 
 class Inpaint:
 
-    def __init__(self, image, rect, patch_size, overlap_size, mirror_hor = True, mirror_vert = True, method="linear"):
+    def __init__(self, image, mask, patch_size, overlap_size, mirror_hor = True, mirror_vert = True, method="linear"):
 
         self.image = np.float32(image)
         self.output = np.zeros_like(image)
@@ -25,18 +25,10 @@ class Inpaint:
         self.method = method
         self.iter = 0
 
-        self.rect = rect
-        self.rect[2] = min(self.rect[2], self.image.shape[1] - self.rect[0])
-        self.rect[3] = min(self.rect[3], self.image.shape[0] - self.rect[1] )
-        self.rect_ori = self.rect
-        win = np.asarray([(i+1)*self.patch_size + i*self.overlap_size for i in range(self.image.shape[0])])
-        self.rect[2] = win[np.where((win>=self.rect[2])==True)[0][0]]
-        self.rect[3] = win[np.where((win>=self.rect[3])==True)[0][0]]
+        self.rects = []
+        self.mask = np.uint8(mask)
+        self.compute_rect()
 
-        if self.rect[2] > self.image.shape[1] - self.rect[0]:
-            self.rect[2] = win[np.where((win>=self.rect[2])==True)[0][0] - 2]
-        if self.rect[3] > self.image.shape[0] - self.rect[1]:
-            self.rect[3] = win[np.where((win>=self.rect[3])==True)[0][0] - 2]
 
         self.example_patches = self.compute_patches()
         self.kdtree = self.init_KDtrees()
@@ -44,11 +36,29 @@ class Inpaint:
         self.PARM_truncation = 0.8
         self.PARM_attenuation = 2
 
+    def compute_rect(self):
+        contours, __ = cv2.findContours(self.mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        for i in contours:
+            rect = list(cv2.boundingRect(i))
+            rect[2] = min(rect[2], self.image.shape[1] - rect[0])
+            rect[3] = min(rect[3], self.image.shape[0] - rect[1] )
+            win = np.asarray([(i+1)*self.patch_size + i*self.overlap_size for i in range(self.image.shape[0])])
+            rect[2] = win[np.where((win>=rect[2])==True)[0][0]]
+            rect[3] = win[np.where((win>=rect[3])==True)[0][0]]
+
+            if rect[2] > self.image.shape[1] - rect[0]:
+                rect[2] = win[np.where((win>=rect[2])==True)[0][0] - 2]
+            if rect[3] > self.image.shape[0] - rect[1]:
+                rect[3] = win[np.where((win>=rect[3])==True)[0][0] - 2]
+
+            self.rects.append(rect)
+
 
     def compute_patches(self):
 
         kernel_size = self.patch_size + 2 * self.overlap_size
-        self.image[self.rect_ori[1]:self.rect_ori[1]+self.rect_ori[3], self.rect_ori[0]:self.rect_ori[0]+self.rect_ori[2], :] = np.nan
+        self.image[self.mask > 0] = np.nan
         result = view_as_windows(self.image, [kernel_size, kernel_size, 3] , self.window_step)
 
 
@@ -59,8 +69,7 @@ class Inpaint:
             if np.isnan(np.sum(j)):
                 delete.append(i)
         result = np.delete(result, delete, axis=0)
-        self.image[self.rect_ori[1]:self.rect_ori[1]+self.rect_ori[3], self.rect_ori[0]:self.rect_ori[0]+self.rect_ori[2], :] = 0
-        self.image[self.rect[1]:self.rect[1]+self.rect[3], self.rect[0]:self.rect[0]+self.rect[2], :] = 0
+        self.image[self.mask > 0] = 0
 
         shape = np.shape(result)
         self.total_patches_count = shape[0]
@@ -160,51 +169,52 @@ class Inpaint:
 
     def resolve(self):
 
-        x0 = int(self.rect[0] - self.overlap_size)
-        y0 = int(self.rect[1] - self.overlap_size)
+        for rect in self.rects:
+            x0 = int(rect[0] - self.overlap_size)
+            y0 = int(rect[1] - self.overlap_size)
 
-        step_x = self.rect[2] // (self.patch_size+self.overlap_size) + 1
-        step_y = self.rect[3] // (self.patch_size+self.overlap_size) + 1
+            step_x = rect[2] // (self.patch_size+self.overlap_size) + 1
+            step_y = rect[3] // (self.patch_size+self.overlap_size) + 1
 
-        for i in range(step_y): # Y
-            for j in range(step_x): # X
-                x = max(0, x0)
-                y = max(0, y0)
+            for i in range(step_y): # Y
+                for j in range(step_x): # X
+                    x = max(0, x0)
+                    y = max(0, y0)
 
-                if j == step_x - 1:
-                    overlap_right = self.image[y:y+self.patch_size+2*self.overlap_size, x + self.patch_size+self.overlap_size:x+self.patch_size+2*self.overlap_size, :]
-                else:
-                    overlap_right = None
-                if i == step_y - 1:
-                    overlap_bottom = self.image[y + self.patch_size+self.overlap_size:y + self.patch_size+2*self.overlap_size, x:x+self.patch_size+2*self.overlap_size, :]
-                else:
-                    overlap_bottom = None
+                    if j == step_x - 1:
+                        overlap_right = self.image[y:y+self.patch_size+2*self.overlap_size, x + self.patch_size+self.overlap_size:x+self.patch_size+2*self.overlap_size, :]
+                    else:
+                        overlap_right = None
+                    if i == step_y - 1:
+                        overlap_bottom = self.image[y + self.patch_size+self.overlap_size:y + self.patch_size+2*self.overlap_size, x:x+self.patch_size+2*self.overlap_size, :]
+                    else:
+                        overlap_bottom = None
 
-                if y0 >=0:
-                    overlap_top = self.image[y:y+self.overlap_size, x:x+self.patch_size+2*self.overlap_size, :]
-                else:
-                    overlap_top = None
+                    if y0 >=0:
+                        overlap_top = self.image[y:y+self.overlap_size, x:x+self.patch_size+2*self.overlap_size, :]
+                    else:
+                        overlap_top = None
 
-                if x0 >=0:
-                    overlap_left = self.image[y:y+self.patch_size+2*self.overlap_size, x:x+self.overlap_size, :]
-                else:
-                    overlap_left = None
+                    if x0 >=0:
+                        overlap_left = self.image[y:y+self.patch_size+2*self.overlap_size, x:x+self.overlap_size, :]
+                    else:
+                        overlap_left = None
 
-                dist, ind = self.find_most_similar_patches(overlap_top, overlap_bottom, overlap_left, overlap_right)
+                    dist, ind = self.find_most_similar_patches(overlap_top, overlap_bottom, overlap_left, overlap_right)
 
-                # TODO: check if is not a mirror and check precision of overlapping at right and bottom edges
+                    # TODO: check if is not a mirror and check precision of overlapping at right and bottom edges
 
-                if dist is not None:
-                    probabilities = self.distances2probability(dist, self.PARM_truncation, self.PARM_attenuation)
-                    patch_id = np.random.choice(ind, 1, p=probabilities)
-                else:
-                    patch_id = np.random.choice(1, self.total_patches_count)
+                    if dist is not None:
+                        probabilities = self.distances2probability(dist, self.PARM_truncation, self.PARM_attenuation)
+                        patch_id = np.random.choice(ind, 1, p=probabilities)
+                    else:
+                        patch_id = np.random.choice(1, self.total_patches_count)
 
-                self.output[y:y+self.patch_size+2*self.overlap_size, x:x+self.patch_size+2*self.overlap_size, :] = self.merge(self.output[y:y+self.patch_size+2*self.overlap_size, x:x+self.patch_size+2*self.overlap_size, :], self.example_patches[patch_id[0],:,:,:], method=self.method)
-                x0 += self.patch_size + self.overlap_size
-            x0 = self.rect[0] - self.overlap_size
-            y0 += self.patch_size + self.overlap_size
-        self.image[self.rect[1] - self.overlap_size:self.rect[1]+self.rect[3] + self.overlap_size, self.rect[0] - self.overlap_size:self.rect[0]+self.rect[2] + self.overlap_size, :] = self.merge(self.image[self.rect[1]- self.overlap_size:self.rect[1]+self.rect[3] + self.overlap_size, self.rect[0]- self.overlap_size:self.rect[0]+self.rect[2] + self.overlap_size, :], self.output[self.rect[1]- self.overlap_size:self.rect[1]+self.rect[3] + self.overlap_size, self.rect[0]- self.overlap_size:self.rect[0]+self.rect[2] + self.overlap_size, :], method=self.method)
+                    self.output[y:y+self.patch_size+2*self.overlap_size, x:x+self.patch_size+2*self.overlap_size, :] = self.merge(self.output[y:y+self.patch_size+2*self.overlap_size, x:x+self.patch_size+2*self.overlap_size, :], self.example_patches[patch_id[0],:,:,:], method=self.method)
+                    x0 += self.patch_size + self.overlap_size
+                x0 = rect[0] - self.overlap_size
+                y0 += self.patch_size + self.overlap_size
+            self.image[rect[1] - self.overlap_size:rect[1]+rect[3] + self.overlap_size, rect[0] - self.overlap_size:rect[0]+rect[2] + self.overlap_size, :] = self.merge(self.image[rect[1]- self.overlap_size:rect[1]+rect[3] + self.overlap_size, rect[0]- self.overlap_size:rect[0]+rect[2] + self.overlap_size, :], self.output[rect[1]- self.overlap_size:rect[1]+rect[3] + self.overlap_size, rect[0]- self.overlap_size:rect[0]+rect[2] + self.overlap_size, :], method=self.method)
         return np.uint8(self.image)
 
     def merge(self, image_0, image_1, method="linear"):
