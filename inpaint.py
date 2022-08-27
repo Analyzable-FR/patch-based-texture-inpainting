@@ -12,7 +12,7 @@ from skimage.util.shape import view_as_windows
 
 class Inpaint:
 
-    def __init__(self, image, rect, patch_size, overlap_size, window_step=5, mirror_hor = True, mirror_vert = True, method="linear"):
+    def __init__(self, image, rect, patch_size, overlap_size, mirror_hor = True, mirror_vert = True, method="linear"):
 
         self.image = np.float32(image)
         self.output = np.zeros_like(image)
@@ -21,7 +21,7 @@ class Inpaint:
         self.mirror_hor = mirror_hor
         self.mirror_vert = mirror_vert
         self.total_patches_count = 0
-        self.window_step = window_step
+        self.window_step = np.max(np.shape(self.image))//30
         self.method = method
         self.iter = 0
 
