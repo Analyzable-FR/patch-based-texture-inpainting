@@ -5,14 +5,14 @@ import imageio
 
 
 img = cv2.imread("imgs/1.jpg")
-patchSize = 20 #size of the patch (without the overlap)
-overlapSize = 5 #the width of the overlap region
+patchSize = 10 #size of the patch (without the overlap)
+overlapSize = 7 #the width of the overlap region
 
-img[40:100, 40:100, :] = 0
+img[40:80, 40:80, :] = 0
 rect = np.zeros_like(img)
-rect[40:100, 40:100, :] = 255
+rect[40:80, 40:80, :] = 255
 
-pbts = Inpaint(img, rect[:,:,0], patchSize, overlapSize, method=None, mirror_hor = True, mirror_vert = True)
+pbts = Inpaint(img, rect[:,:,0], patchSize, overlapSize, window_step=2, mirror_hor = True, mirror_vert = True, method=None)
 inpaint = pbts.resolve()
 
 images = [img, inpaint]
@@ -67,8 +67,8 @@ plt.figure()
 plt.imshow(inpaint)
 plt.show()
 img = cv2.imread("imgs/4.jpg")
-patchSize = 110 #size of the patch (without the overlap)
-overlapSize = 70 #the width of the overlap region
+patchSize = 150 #size of the patch (without the overlap)
+overlapSize = 50 #the width of the overlap region
 
 img[500:600, 500:1300, :] = 0
 img[900:1000, 500:1300, :] = 0
@@ -76,7 +76,7 @@ rect = np.zeros_like(img)
 rect[500:600, 500:1300, :] = 255
 rect[900:1000, 500:1300, :] = 255
 
-pbts = Inpaint(img, rect[:,:,0], patchSize, overlapSize, mirror_hor = True, mirror_vert = True, method=None)
+pbts = Inpaint(img, rect[:,:,0], patchSize, overlapSize, window_step = 60, mirror_hor = True, mirror_vert = True, method="linear")
 inpaint = pbts.resolve()
 
 images = [img, inpaint]

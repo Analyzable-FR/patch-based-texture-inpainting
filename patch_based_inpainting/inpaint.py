@@ -8,11 +8,12 @@ from random import randint
 
 from sklearn.neighbors import KDTree
 from skimage.util.shape import view_as_windows
+from skimage.filters import gaussian
 
 
 class Inpaint:
 
-    def __init__(self, image, mask, patch_size, overlap_size, mirror_hor = True, mirror_vert = True, method="linear"):
+    def __init__(self, image, mask, patch_size, overlap_size, window_step = None, mirror_hor = True, mirror_vert = True, method="linear"):
 
         self.image = np.float32(image)
         self.output = np.zeros_like(image)
@@ -21,7 +22,10 @@ class Inpaint:
         self.mirror_hor = mirror_hor
         self.mirror_vert = mirror_vert
         self.total_patches_count = 0
-        self.window_step = np.max(np.shape(self.image))//30
+        if window_step is None:
+            self.window_step = np.max(np.shape(self.image))//30
+        else:
+            self.window_step = window_step
         self.method = method
         self.iter = 0
 
@@ -53,6 +57,7 @@ class Inpaint:
                 rect[3] = win[np.where((win>=rect[3])==True)[0][0] - 2]
 
             self.rects.append(rect)
+            self.mask[rect[1]:rect[1] + rect[3], rect[0]:rect[0] + rect[2]] = 255
 
 
     def compute_patches(self):
@@ -218,9 +223,14 @@ class Inpaint:
         return np.uint8(self.image)
 
     def merge(self, image_0, image_1, method="linear"):
+        non_zeros = tuple([(image_0 != 0) & (image_1 != 0)]) # Overlap area
+        zeros = tuple([(image_0 == 0) & (image_1 != 0)]) # patch_size area
         if method == "linear":
-            non_zeros = tuple([(image_0 != 0) | (image_1 != 0)])
+            image_0[zeros] = image_1[zeros]
             image_0[non_zeros] = (image_0[non_zeros] + image_1[non_zeros]) / ((image_0[non_zeros] != 0).astype(float)+(image_1[non_zeros] != 0).astype(float))
+        elif method == "gaussian":
+            image_0 = image_1
+            image_0[non_zeros] = gaussian(image_0[non_zeros], sigma=1, preserve_range=True, channel_axis=2)
         else:
             image_0 = image_1
         return image_0
