@@ -9,14 +9,15 @@ from random import randint
 from sklearn.neighbors import KDTree
 from skimage.util.shape import view_as_windows
 from skimage.filters import gaussian
+from skimage.transform import resize
+from skimage import exposure
 
 
 class Inpaint:
 
-    def __init__(self, image, mask, patch_size, overlap_size, window_step = None, mirror_hor = True, mirror_vert = True, method="linear"):
+    def __init__(self, image, mask, patch_size, overlap_size, window_step = None, mirror_hor = True, mirror_vert = True, method="blend"):
 
         self.image = np.float32(image)
-        self.output = np.zeros_like(image)
         self.patch_size = patch_size
         self.overlap_size = overlap_size
         self.mirror_hor = mirror_hor
@@ -39,6 +40,14 @@ class Inpaint:
 
         self.PARM_truncation = 0.8
         self.PARM_attenuation = 2
+
+        self.blending_mask = np.ones((self.patch_size+2*self.overlap_size, self.patch_size+2*self.overlap_size, 3))
+        self.blending_mask[0:self.overlap_size//3, :, :] = 0
+        self.blending_mask[:, 0:self.overlap_size//3, :] = 0
+        self.blending_mask[-self.overlap_size//3::, :, :] = 0
+        self.blending_mask[:, -self.overlap_size//3::, :] = 0
+        self.blending_mask = gaussian(self.blending_mask, sigma=self.overlap_size//2, preserve_range=True, channel_axis=2)
+        self.blending_mask = exposure.rescale_intensity(self.blending_mask)
 
     def compute_rect(self):
         contours, __ = cv2.findContours(self.mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -74,7 +83,6 @@ class Inpaint:
             if np.isnan(np.sum(j)):
                 delete.append(i)
         result = np.delete(result, delete, axis=0)
-        self.image[self.mask > 0] = 0
 
         shape = np.shape(result)
         self.total_patches_count = shape[0]
@@ -215,22 +223,24 @@ class Inpaint:
                     else:
                         patch_id = np.random.choice(1, self.total_patches_count)
 
-                    self.output[y:y+self.patch_size+2*self.overlap_size, x:x+self.patch_size+2*self.overlap_size, :] = self.merge(self.output[y:y+self.patch_size+2*self.overlap_size, x:x+self.patch_size+2*self.overlap_size, :], self.example_patches[patch_id[0],:,:,:], method=self.method)
+                    self.image[y:y+self.patch_size+2*self.overlap_size, x:x+self.patch_size+2*self.overlap_size, :] = self.merge(self.image[y:y+self.patch_size+2*self.overlap_size, x:x+self.patch_size+2*self.overlap_size, :], self.example_patches[patch_id[0],:,:,:], method=self.method)
                     x0 += self.patch_size + self.overlap_size
                 x0 = rect[0] - self.overlap_size
                 y0 += self.patch_size + self.overlap_size
-            self.image[rect[1] - self.overlap_size:rect[1]+rect[3] + self.overlap_size, rect[0] - self.overlap_size:rect[0]+rect[2] + self.overlap_size, :] = self.merge(self.image[rect[1]- self.overlap_size:rect[1]+rect[3] + self.overlap_size, rect[0]- self.overlap_size:rect[0]+rect[2] + self.overlap_size, :], self.output[rect[1]- self.overlap_size:rect[1]+rect[3] + self.overlap_size, rect[0]- self.overlap_size:rect[0]+rect[2] + self.overlap_size, :], method=self.method)
         return np.uint8(self.image)
 
     def merge(self, image_0, image_1, method="linear"):
-        non_zeros = tuple([(image_0 != 0) & (image_1 != 0)]) # Overlap area
-        zeros = tuple([(image_0 == 0) & (image_1 != 0)]) # patch_size area
+        non_zeros = ~np.isnan(image_0) # Overlap area
+        zeros = np.isnan(image_0) # patch_size area
         if method == "linear":
             image_0[zeros] = image_1[zeros]
-            image_0[non_zeros] = (image_0[non_zeros] + image_1[non_zeros]) / ((image_0[non_zeros] != 0).astype(float)+(image_1[non_zeros] != 0).astype(float))
+            image_0[non_zeros] = (image_0[non_zeros] + image_1[non_zeros]) / 2
         elif method == "gaussian":
             image_0 = image_1
             image_0[non_zeros] = gaussian(image_0[non_zeros], sigma=1, preserve_range=True, channel_axis=2)
+        elif method == "blend":
+            image_0[zeros] = image_1[zeros]*self.blending_mask[zeros]
+            image_0[non_zeros] = image_0[non_zeros]*(1 - self.blending_mask[non_zeros]) + image_1[non_zeros]*self.blending_mask[non_zeros]
         else:
             image_0 = image_1
         return image_0

@@ -12,7 +12,7 @@ img[40:80, 40:80, :] = 0
 rect = np.zeros_like(img)
 rect[40:80, 40:80, :] = 255
 
-pbts = Inpaint(img, rect[:,:,0], patchSize, overlapSize, window_step=2, mirror_hor = True, mirror_vert = True, method=None)
+pbts = Inpaint(img, rect[:,:,0], patchSize, overlapSize, window_step=2, mirror_hor = True, mirror_vert = True, method="blend")
 inpaint = pbts.resolve()
 
 images = [img, inpaint]
@@ -76,7 +76,7 @@ rect = np.zeros_like(img)
 rect[500:600, 500:1300, :] = 255
 rect[900:1000, 500:1300, :] = 255
 
-pbts = Inpaint(img, rect[:,:,0], patchSize, overlapSize, window_step = 60, mirror_hor = True, mirror_vert = True, method="linear")
+pbts = Inpaint(img, rect[:,:,0], patchSize, overlapSize, window_step = 60, mirror_hor = True, mirror_vert = True)
 inpaint = pbts.resolve()
 
 images = [img, inpaint]
