@@ -34,6 +34,32 @@ from skimage import exposure
 
 
 class Inpaint:
+    '''
+    The Inpaint object contains will performed patch-based inpainting.
+    Usage: create the object with parameters, call object.resolve().
+
+    Parameters
+    ----------
+    image : array
+        The image to inpaint.
+    mask : array
+        The mask of the same size as the image, all value > 0 will be inpainted.
+    patch_size : int
+        The size of one square patch.
+    overlap_size : int
+        The size of the overlap between patch.
+    window_step : int
+        The shape of the elementary n-dimensional orthotope of the rolling window view. If None will be autocomputed. Can lead to a RAM saturation if to small.
+    mirror_hor : bool
+        Compute the horizontal mirror of each patch for training.
+    mirror_vert : bool
+        Compute the vertical mirror of each patch for training.
+    rotation : list
+        Compute the given rotations in degrees of each patch for training.
+    method : str
+        Method to use for blending adjacent patches. blend: feathering blending ; linear: mean blending ; gaussian: gaussian blur blending ; None: no blending.
+
+    '''
 
     def __init__(self, image, mask, patch_size, overlap_size, window_step = None, mirror_hor = True, mirror_vert = True, rotation = None, method="blend"):
 
@@ -173,7 +199,6 @@ class Inpaint:
         tree_combined_2_bis_1 = KDTree(flatten_combined_2_bis_1, leaf_size=leaf_size)
         return [tree_top, tree_bottom, tree_left, tree_right, tree_combined_4, tree_combined_3, tree_combined_2, tree_combined_3_bis, tree_combined_2_bis, tree_combined_2_bis_1] # TO DO convert to dict
 
-    # TODO: squash all the conditions in one loop by taking one list with overlaps and one list of bools [top, bottom, left, right]
     def find_most_similar_patches(self, overlap_top, overlap_bottom, overlap_left, overlap_right, k=5):
         if (overlap_top is not None) and (overlap_bottom is not None) and (overlap_left is not None) and (overlap_right is not None):
             combined = self.get_combined_overlap([overlap_top.reshape(-1), overlap_bottom.reshape(-1), overlap_left.reshape(-1), overlap_right.reshape(-1)])
