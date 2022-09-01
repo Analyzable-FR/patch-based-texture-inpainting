@@ -76,7 +76,7 @@ rect = np.zeros_like(img)
 rect[500:600, 500:1300, :] = 255
 rect[900:1000, 500:1300, :] = 255
 
-pbts = Inpaint(img, rect[:,:,0], patchSize, overlapSize, window_step = 60, mirror_hor = True, mirror_vert = True)
+pbts = Inpaint(img, rect[:,:,0], patchSize, overlapSize, window_step = 60, mirror_hor = True, mirror_vert = True, rotation=[180])
 inpaint = pbts.resolve()
 
 images = [img, inpaint]

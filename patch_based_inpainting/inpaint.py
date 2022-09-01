@@ -188,40 +188,38 @@ class Inpaint:
         flatten_combined_2_bis_1 = self.get_combined_overlap([flatten_left, flatten_right])
 
         tree_top = KDTree(flatten_top, leaf_size=leaf_size)
-        tree_bottom = KDTree(flatten_bottom, leaf_size=leaf_size)
         tree_left = KDTree(flatten_left, leaf_size=leaf_size)
-        tree_right = KDTree(flatten_right, leaf_size=leaf_size)
         tree_combined_4 = KDTree(flatten_combined_4, leaf_size=leaf_size)
         tree_combined_3 = KDTree(flatten_combined_3, leaf_size=leaf_size)
         tree_combined_3_bis = KDTree(flatten_combined_3_bis, leaf_size=leaf_size)
         tree_combined_2 = KDTree(flatten_combined_2, leaf_size=leaf_size)
         tree_combined_2_bis = KDTree(flatten_combined_2_bis, leaf_size=leaf_size)
         tree_combined_2_bis_1 = KDTree(flatten_combined_2_bis_1, leaf_size=leaf_size)
-        return [tree_top, tree_bottom, tree_left, tree_right, tree_combined_4, tree_combined_3, tree_combined_2, tree_combined_3_bis, tree_combined_2_bis, tree_combined_2_bis_1] # TO DO convert to dict
+        return {"t": tree_top, "l": tree_left, "tblr": tree_combined_4, "tlr": tree_combined_3, "tl": tree_combined_2, "tbl": tree_combined_3_bis, "tb": tree_combined_2_bis, "lr": tree_combined_2_bis_1}
 
     def find_most_similar_patches(self, overlap_top, overlap_bottom, overlap_left, overlap_right, k=5):
         if (overlap_top is not None) and (overlap_bottom is not None) and (overlap_left is not None) and (overlap_right is not None):
             combined = self.get_combined_overlap([overlap_top.reshape(-1), overlap_bottom.reshape(-1), overlap_left.reshape(-1), overlap_right.reshape(-1)])
-            dist, ind = self.kdtree[4].query([combined], k=k)
+            dist, ind = self.kdtree["tblr"].query([combined], k=k)
         elif (overlap_top is not None) and (overlap_bottom is None) and (overlap_left is not None) and (overlap_right is not None):
             combined = self.get_combined_overlap([overlap_top.reshape(-1), overlap_left.reshape(-1), overlap_right.reshape(-1)])
-            dist, ind = self.kdtree[5].query([combined], k=k)
+            dist, ind = self.kdtree["tlr"].query([combined], k=k)
         elif (overlap_top is not None) and (overlap_bottom is not None) and (overlap_left is not None) and (overlap_right is None):
             combined = self.get_combined_overlap([overlap_top.reshape(-1), overlap_bottom.reshape(-1), overlap_left.reshape(-1)])
-            dist, ind = self.kdtree[7].query([combined], k=k)
+            dist, ind = self.kdtree["tbl"].query([combined], k=k)
         elif (overlap_top is not None) and (overlap_bottom is None) and (overlap_left is not None) and (overlap_right is None):
             combined = self.get_combined_overlap([overlap_top.reshape(-1), overlap_left.reshape(-1)])
-            dist, ind = self.kdtree[6].query([combined], k=k)
+            dist, ind = self.kdtree["tl"].query([combined], k=k)
         elif (overlap_top is not None) and (overlap_bottom is None) and (overlap_left is None) and (overlap_right is None):
-            dist, ind = self.kdtree[0].query([overlap_top.reshape(-1)], k=k)
+            dist, ind = self.kdtree["t"].query([overlap_top.reshape(-1)], k=k)
         elif (overlap_top is None) and (overlap_bottom is None) and (overlap_left is not None) and (overlap_right is None):
-            dist, ind = self.kdtree[2].query([overlap_left.reshape(-1)], k=k)
+            dist, ind = self.kdtree["l"].query([overlap_left.reshape(-1)], k=k)
         elif (overlap_top is not None) and (overlap_bottom is not None) and (overlap_left is None) and (overlap_right is None):
             combined = self.get_combined_overlap([overlap_top.reshape(-1), overlap_bottom.reshape(-1)])
-            dist, ind = self.kdtree[8].query([combined], k=k)
+            dist, ind = self.kdtree["tb"].query([combined], k=k)
         elif (overlap_top is None) and (overlap_bottom is None) and (overlap_left is not None) and (overlap_right is not None):
             combined = self.get_combined_overlap([overlap_left.reshape(-1), overlap_right.reshape(-1)])
-            dist, ind = self.kdtree[9].query([combined], k=k)
+            dist, ind = self.kdtree["lr"].query([combined], k=k)
         elif (overlap_top is None) and (overlap_bottom is None) and (overlap_left is None) and (overlap_right is None):
             dist, ind = [None], [0]
         else:
