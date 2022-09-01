@@ -1,3 +1,23 @@
+'''
+MIT License
+Copyright (c) 2022 Analyzable
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+'''
+
 import numpy as np
 import matplotlib.pyplot as plt
 import os
@@ -9,19 +29,20 @@ from random import randint
 from sklearn.neighbors import KDTree
 from skimage.util.shape import view_as_windows
 from skimage.filters import gaussian
-from skimage.transform import resize
+from skimage.transform import resize, rotate
 from skimage import exposure
 
 
 class Inpaint:
 
-    def __init__(self, image, mask, patch_size, overlap_size, window_step = None, mirror_hor = True, mirror_vert = True, method="blend"):
+    def __init__(self, image, mask, patch_size, overlap_size, window_step = None, mirror_hor = True, mirror_vert = True, rotation = None, method="blend"):
 
         self.image = np.float32(image)
         self.patch_size = patch_size
         self.overlap_size = overlap_size
         self.mirror_hor = mirror_hor
         self.mirror_vert = mirror_vert
+        self.rotation = rotation
         self.total_patches_count = 0
         if window_step is None:
             self.window_step = np.max(np.shape(self.image))//30
@@ -75,6 +96,10 @@ class Inpaint:
         self.image[self.mask > 0] = np.nan
         result = view_as_windows(self.image, [kernel_size, kernel_size, 3] , self.window_step)
 
+        if self.rotation is not None:
+            for i in self.rotation:
+                rot = rotate(self.image, i)
+                result = np.concatenate((result, view_as_windows(rot, [kernel_size, kernel_size, 3] , self.window_step)))
 
         shape = np.shape(result)
         result = result.reshape(shape[0]*shape[1], kernel_size, kernel_size, 3)
@@ -113,7 +138,7 @@ class Inpaint:
                 combined[shape[0]*i:shape[0]*(i+1)] = j
         return combined
 
-    def init_KDtrees(self):
+    def init_KDtrees(self, leaf_size=25):
         top_overlap = self.example_patches[:, 0:self.overlap_size, :, :]
         bottom_overlap = self.example_patches[:, -self.overlap_size::, :, :]
         left_overlap = self.example_patches[:, :, 0:self.overlap_size, :]
@@ -136,16 +161,16 @@ class Inpaint:
         flatten_combined_2_bis = self.get_combined_overlap([flatten_top, flatten_bottom])
         flatten_combined_2_bis_1 = self.get_combined_overlap([flatten_left, flatten_right])
 
-        tree_top = KDTree(flatten_top)
-        tree_bottom = KDTree(flatten_bottom)
-        tree_left = KDTree(flatten_left)
-        tree_right = KDTree(flatten_right)
-        tree_combined_4 = KDTree(flatten_combined_4)
-        tree_combined_3 = KDTree(flatten_combined_3)
-        tree_combined_3_bis = KDTree(flatten_combined_3_bis)
-        tree_combined_2 = KDTree(flatten_combined_2)
-        tree_combined_2_bis = KDTree(flatten_combined_2_bis)
-        tree_combined_2_bis_1 = KDTree(flatten_combined_2_bis_1)
+        tree_top = KDTree(flatten_top, leaf_size=leaf_size)
+        tree_bottom = KDTree(flatten_bottom, leaf_size=leaf_size)
+        tree_left = KDTree(flatten_left, leaf_size=leaf_size)
+        tree_right = KDTree(flatten_right, leaf_size=leaf_size)
+        tree_combined_4 = KDTree(flatten_combined_4, leaf_size=leaf_size)
+        tree_combined_3 = KDTree(flatten_combined_3, leaf_size=leaf_size)
+        tree_combined_3_bis = KDTree(flatten_combined_3_bis, leaf_size=leaf_size)
+        tree_combined_2 = KDTree(flatten_combined_2, leaf_size=leaf_size)
+        tree_combined_2_bis = KDTree(flatten_combined_2_bis, leaf_size=leaf_size)
+        tree_combined_2_bis_1 = KDTree(flatten_combined_2_bis_1, leaf_size=leaf_size)
         return [tree_top, tree_bottom, tree_left, tree_right, tree_combined_4, tree_combined_3, tree_combined_2, tree_combined_3_bis, tree_combined_2_bis, tree_combined_2_bis_1] # TO DO convert to dict
 
     # TODO: squash all the conditions in one loop by taking one list with overlaps and one list of bools [top, bottom, left, right]
