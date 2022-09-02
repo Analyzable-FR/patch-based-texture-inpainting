@@ -2,7 +2,14 @@
 
 Based on "Image Quilting for Texture Synthesis and Transfer" and "Real-Time Texture Synthesis by Patch-Based Sampling" papers and from the implementation of anopara https://github.com/anopara/patch-based-texture-synthesis.
 
+## Installation
+```
+pip install patch-based-inpainting
+```
+
 ## Usage
+[Documentation](https://patch-based-texture-inpainting.readthedocs.io/en/latest/)
+
 ```
     The Inpaint object contains will performed patch-based inpainting.
     Usage: create the object with parameters, call object.resolve().

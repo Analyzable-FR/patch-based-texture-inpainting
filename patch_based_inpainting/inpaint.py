@@ -63,7 +63,7 @@ class Inpaint:
 
     '''
 
-    def __init__(self, image, mask, patch_size, overlap_size, training_area = None, window_step = None, mirror_hor = True, mirror_vert = True, rotation = None, method="blend"):
+    def __init__(self, image, mask, patch_size, overlap_size, training_area=None, window_step=None, mirror_hor=True, mirror_vert=True, rotation=None, method="blend"):
 
         self.image = np.float32(image)
         self.patch_size = patch_size
@@ -90,33 +90,37 @@ class Inpaint:
         self.PARM_truncation = 0.8
         self.PARM_attenuation = 2
 
-        self.blending_mask = np.ones((self.patch_size+2*self.overlap_size, self.patch_size+2*self.overlap_size, 3))
+        self.blending_mask = np.ones(
+            (self.patch_size+2*self.overlap_size, self.patch_size+2*self.overlap_size, 3))
         self.blending_mask[0:self.overlap_size//3, :, :] = 0
         self.blending_mask[:, 0:self.overlap_size//3, :] = 0
         self.blending_mask[-self.overlap_size//3::, :, :] = 0
         self.blending_mask[:, -self.overlap_size//3::, :] = 0
-        self.blending_mask = gaussian(self.blending_mask, sigma=self.overlap_size//2, preserve_range=True, channel_axis=2)
+        self.blending_mask = gaussian(
+            self.blending_mask, sigma=self.overlap_size//2, preserve_range=True, channel_axis=2)
         self.blending_mask = exposure.rescale_intensity(self.blending_mask)
 
     def compute_rect(self):
-        contours, __ = cv2.findContours(self.mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        contours, __ = cv2.findContours(
+            self.mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         for i in contours:
             rect = list(cv2.boundingRect(i))
             rect[2] = min(rect[2], self.image.shape[1] - rect[0])
-            rect[3] = min(rect[3], self.image.shape[0] - rect[1] )
-            win = np.asarray([(i+1)*self.patch_size + i*self.overlap_size for i in range(self.image.shape[0])])
-            rect[2] = win[np.where((win>=rect[2])==True)[0][0]]
-            rect[3] = win[np.where((win>=rect[3])==True)[0][0]]
+            rect[3] = min(rect[3], self.image.shape[0] - rect[1])
+            win = np.asarray(
+                [(i+1)*self.patch_size + i*self.overlap_size for i in range(self.image.shape[0])])
+            rect[2] = win[np.where((win >= rect[2]) == True)[0][0]]
+            rect[3] = win[np.where((win >= rect[3]) == True)[0][0]]
 
             if rect[2] > self.image.shape[1] - rect[0]:
-                rect[2] = win[np.where((win>=rect[2])==True)[0][0] - 2]
+                rect[2] = win[np.where((win >= rect[2]) == True)[0][0] - 2]
             if rect[3] > self.image.shape[0] - rect[1]:
-                rect[3] = win[np.where((win>=rect[3])==True)[0][0] - 2]
+                rect[3] = win[np.where((win >= rect[3]) == True)[0][0] - 2]
 
             self.rects.append(rect)
-            self.mask[rect[1]:rect[1] + rect[3], rect[0]:rect[0] + rect[2]] = 255
-
+            self.mask[rect[1]:rect[1] + rect[3],
+                      rect[0]:rect[0] + rect[2]] = 255
 
     def compute_patches(self):
 
@@ -124,17 +128,21 @@ class Inpaint:
         self.image[self.mask > 0] = np.nan
 
         if self.training_area is not None:
-            result = view_as_windows(self.image[self.training_area[1] : self.training_area[1] + self.training_area[3], self.training_area[0] : self.training_area[0] + self.training_area[2], :], [kernel_size, kernel_size, 3] , self.window_step)
+            result = view_as_windows(self.image[self.training_area[1]: self.training_area[1] + self.training_area[3], self.training_area[0]
+                                     : self.training_area[0] + self.training_area[2], :], [kernel_size, kernel_size, 3], self.window_step)
         else:
-            result = view_as_windows(self.image, [kernel_size, kernel_size, 3] , self.window_step)
+            result = view_as_windows(
+                self.image, [kernel_size, kernel_size, 3], self.window_step)
 
         if self.rotation is not None:
             for i in self.rotation:
                 if self.training_area is not None:
-                    rot = rotate(self.image[self.training_area[1] : self.training_area[1] + self.training_area[3], self.training_area[0] : self.training_area[0] + self.training_area[2], :], i)
+                    rot = rotate(self.image[self.training_area[1]: self.training_area[1] + self.training_area[3],
+                                 self.training_area[0]: self.training_area[0] + self.training_area[2], :], i)
                 else:
                     rot = rotate(self.image, i)
-                result = np.concatenate((result, view_as_windows(rot, [kernel_size, kernel_size, 3] , self.window_step)))
+                result = np.concatenate((result, view_as_windows(
+                    rot, [kernel_size, kernel_size, 3], self.window_step)))
 
         shape = np.shape(result)
         result = result.reshape(shape[0]*shape[1], kernel_size, kernel_size, 3)
@@ -189,50 +197,66 @@ class Inpaint:
         flatten_left = left_overlap.reshape(shape_left[0], -1)
         flatten_right = right_overlap.reshape(shape_right[0], -1)
 
-        flatten_combined_4 = self.get_combined_overlap([flatten_top, flatten_bottom, flatten_left, flatten_right])
-        flatten_combined_3 = self.get_combined_overlap([flatten_top, flatten_left, flatten_right])
-        flatten_combined_3_bis = self.get_combined_overlap([flatten_top, flatten_bottom, flatten_left])
-        flatten_combined_2 = self.get_combined_overlap([flatten_top, flatten_left])
-        flatten_combined_2_bis = self.get_combined_overlap([flatten_top, flatten_bottom])
-        flatten_combined_2_bis_1 = self.get_combined_overlap([flatten_left, flatten_right])
+        flatten_combined_4 = self.get_combined_overlap(
+            [flatten_top, flatten_bottom, flatten_left, flatten_right])
+        flatten_combined_3 = self.get_combined_overlap(
+            [flatten_top, flatten_left, flatten_right])
+        flatten_combined_3_bis = self.get_combined_overlap(
+            [flatten_top, flatten_bottom, flatten_left])
+        flatten_combined_2 = self.get_combined_overlap(
+            [flatten_top, flatten_left])
+        flatten_combined_2_bis = self.get_combined_overlap(
+            [flatten_top, flatten_bottom])
+        flatten_combined_2_bis_1 = self.get_combined_overlap(
+            [flatten_left, flatten_right])
 
         tree_top = KDTree(flatten_top, leaf_size=leaf_size)
         tree_left = KDTree(flatten_left, leaf_size=leaf_size)
         tree_combined_4 = KDTree(flatten_combined_4, leaf_size=leaf_size)
         tree_combined_3 = KDTree(flatten_combined_3, leaf_size=leaf_size)
-        tree_combined_3_bis = KDTree(flatten_combined_3_bis, leaf_size=leaf_size)
+        tree_combined_3_bis = KDTree(
+            flatten_combined_3_bis, leaf_size=leaf_size)
         tree_combined_2 = KDTree(flatten_combined_2, leaf_size=leaf_size)
-        tree_combined_2_bis = KDTree(flatten_combined_2_bis, leaf_size=leaf_size)
-        tree_combined_2_bis_1 = KDTree(flatten_combined_2_bis_1, leaf_size=leaf_size)
+        tree_combined_2_bis = KDTree(
+            flatten_combined_2_bis, leaf_size=leaf_size)
+        tree_combined_2_bis_1 = KDTree(
+            flatten_combined_2_bis_1, leaf_size=leaf_size)
         return {"t": tree_top, "l": tree_left, "tblr": tree_combined_4, "tlr": tree_combined_3, "tl": tree_combined_2, "tbl": tree_combined_3_bis, "tb": tree_combined_2_bis, "lr": tree_combined_2_bis_1}
 
     def find_most_similar_patches(self, overlap_top, overlap_bottom, overlap_left, overlap_right, k=5):
         if (overlap_top is not None) and (overlap_bottom is not None) and (overlap_left is not None) and (overlap_right is not None):
-            combined = self.get_combined_overlap([overlap_top.reshape(-1), overlap_bottom.reshape(-1), overlap_left.reshape(-1), overlap_right.reshape(-1)])
+            combined = self.get_combined_overlap(
+                [overlap_top.reshape(-1), overlap_bottom.reshape(-1), overlap_left.reshape(-1), overlap_right.reshape(-1)])
             dist, ind = self.kdtree["tblr"].query([combined], k=k)
         elif (overlap_top is not None) and (overlap_bottom is None) and (overlap_left is not None) and (overlap_right is not None):
-            combined = self.get_combined_overlap([overlap_top.reshape(-1), overlap_left.reshape(-1), overlap_right.reshape(-1)])
+            combined = self.get_combined_overlap(
+                [overlap_top.reshape(-1), overlap_left.reshape(-1), overlap_right.reshape(-1)])
             dist, ind = self.kdtree["tlr"].query([combined], k=k)
         elif (overlap_top is not None) and (overlap_bottom is not None) and (overlap_left is not None) and (overlap_right is None):
-            combined = self.get_combined_overlap([overlap_top.reshape(-1), overlap_bottom.reshape(-1), overlap_left.reshape(-1)])
+            combined = self.get_combined_overlap(
+                [overlap_top.reshape(-1), overlap_bottom.reshape(-1), overlap_left.reshape(-1)])
             dist, ind = self.kdtree["tbl"].query([combined], k=k)
         elif (overlap_top is not None) and (overlap_bottom is None) and (overlap_left is not None) and (overlap_right is None):
-            combined = self.get_combined_overlap([overlap_top.reshape(-1), overlap_left.reshape(-1)])
+            combined = self.get_combined_overlap(
+                [overlap_top.reshape(-1), overlap_left.reshape(-1)])
             dist, ind = self.kdtree["tl"].query([combined], k=k)
         elif (overlap_top is not None) and (overlap_bottom is None) and (overlap_left is None) and (overlap_right is None):
             dist, ind = self.kdtree["t"].query([overlap_top.reshape(-1)], k=k)
         elif (overlap_top is None) and (overlap_bottom is None) and (overlap_left is not None) and (overlap_right is None):
             dist, ind = self.kdtree["l"].query([overlap_left.reshape(-1)], k=k)
         elif (overlap_top is not None) and (overlap_bottom is not None) and (overlap_left is None) and (overlap_right is None):
-            combined = self.get_combined_overlap([overlap_top.reshape(-1), overlap_bottom.reshape(-1)])
+            combined = self.get_combined_overlap(
+                [overlap_top.reshape(-1), overlap_bottom.reshape(-1)])
             dist, ind = self.kdtree["tb"].query([combined], k=k)
         elif (overlap_top is None) and (overlap_bottom is None) and (overlap_left is not None) and (overlap_right is not None):
-            combined = self.get_combined_overlap([overlap_left.reshape(-1), overlap_right.reshape(-1)])
+            combined = self.get_combined_overlap(
+                [overlap_left.reshape(-1), overlap_right.reshape(-1)])
             dist, ind = self.kdtree["lr"].query([combined], k=k)
         elif (overlap_top is None) and (overlap_bottom is None) and (overlap_left is None) and (overlap_right is None):
             dist, ind = [None], [0]
         else:
-            raise Exception("ERROR: no valid overlap area is passed to -findMostSimilarPatch-")
+            raise Exception(
+                "ERROR: no valid overlap area is passed to -findMostSimilarPatch-")
         dist = dist[0]
         ind = ind[0]
         return dist, ind
@@ -249,75 +273,88 @@ class Inpaint:
             step_x = rect[2] // (self.patch_size+self.overlap_size) + 1
             step_y = rect[3] // (self.patch_size+self.overlap_size) + 1
 
-            for i in range(step_y): # Y
-                for j in range(step_x): # X
+            for i in range(step_y):  # Y
+                for j in range(step_x):  # X
                     x = max(0, x0)
                     y = max(0, y0)
 
                     if j == step_x - 1:
-                        overlap_right = self.image[y:y+self.patch_size+2*self.overlap_size, x + self.patch_size+self.overlap_size:x+self.patch_size+2*self.overlap_size, :]
+                        overlap_right = self.image[y:y+self.patch_size+2*self.overlap_size, x +
+                                                   self.patch_size+self.overlap_size:x+self.patch_size+2*self.overlap_size, :]
                     else:
                         overlap_right = None
                     if i == step_y - 1:
-                        overlap_bottom = self.image[y + self.patch_size+self.overlap_size:y + self.patch_size+2*self.overlap_size, x:x+self.patch_size+2*self.overlap_size, :]
+                        overlap_bottom = self.image[y + self.patch_size+self.overlap_size:y +
+                                                    self.patch_size+2*self.overlap_size, x:x+self.patch_size+2*self.overlap_size, :]
                     else:
                         overlap_bottom = None
 
-                    if y0 >=0:
-                        overlap_top = self.image[y:y+self.overlap_size, x:x+self.patch_size+2*self.overlap_size, :]
+                    if y0 >= 0:
+                        overlap_top = self.image[y:y+self.overlap_size,
+                                                 x:x+self.patch_size+2*self.overlap_size, :]
                     else:
                         overlap_top = None
 
-                    if x0 >=0:
-                        overlap_left = self.image[y:y+self.patch_size+2*self.overlap_size, x:x+self.overlap_size, :]
+                    if x0 >= 0:
+                        overlap_left = self.image[y:y+self.patch_size +
+                                                  2*self.overlap_size, x:x+self.overlap_size, :]
                     else:
                         overlap_left = None
 
-                    dist, ind = self.find_most_similar_patches(overlap_top, overlap_bottom, overlap_left, overlap_right)
+                    dist, ind = self.find_most_similar_patches(
+                        overlap_top, overlap_bottom, overlap_left, overlap_right)
 
                     # TODO: check if is not a mirror and check precision of overlapping at right and bottom edges
 
                     if dist is not None:
-                        probabilities = self.distances2probability(dist, self.PARM_truncation, self.PARM_attenuation)
+                        probabilities = self.distances2probability(
+                            dist, self.PARM_truncation, self.PARM_attenuation)
                         patch_id = np.random.choice(ind, 1, p=probabilities)
                     else:
-                        patch_id = np.random.choice(1, self.total_patches_count)
+                        patch_id = np.random.choice(
+                            1, self.total_patches_count)
 
-                    self.image[y:y+self.patch_size+2*self.overlap_size, x:x+self.patch_size+2*self.overlap_size, :] = self.merge(self.image[y:y+self.patch_size+2*self.overlap_size, x:x+self.patch_size+2*self.overlap_size, :], self.example_patches[patch_id[0],:,:,:], method=self.method)
+                    self.image[y:y+self.patch_size+2*self.overlap_size, x:x+self.patch_size+2*self.overlap_size, :] = self.merge(
+                        self.image[y:y+self.patch_size+2*self.overlap_size, x:x+self.patch_size+2*self.overlap_size, :], self.example_patches[patch_id[0], :, :, :], method=self.method)
                     x0 += self.patch_size + self.overlap_size
                 x0 = rect[0] - self.overlap_size
                 y0 += self.patch_size + self.overlap_size
         return np.uint8(self.image)
 
     def merge(self, image_0, image_1, method="linear"):
-        non_zeros = ~np.isnan(image_0) # Overlap area
-        zeros = np.isnan(image_0) # patch_size area
+        non_zeros = ~np.isnan(image_0)  # Overlap area
+        zeros = np.isnan(image_0)  # patch_size area
         if method == "linear":
             image_0[zeros] = image_1[zeros]
             image_0[non_zeros] = (image_0[non_zeros] + image_1[non_zeros]) / 2
         elif method == "gaussian":
             image_0 = image_1
-            image_0[non_zeros] = gaussian(image_0[non_zeros], sigma=1, preserve_range=True, channel_axis=2)
+            image_0[non_zeros] = gaussian(
+                image_0[non_zeros], sigma=1, preserve_range=True, channel_axis=2)
         elif method == "blend":
             image_0[zeros] = image_1[zeros]*self.blending_mask[zeros]
-            image_0[non_zeros] = image_0[non_zeros]*(1 - self.blending_mask[non_zeros]) + image_1[non_zeros]*self.blending_mask[non_zeros]
+            image_0[non_zeros] = image_0[non_zeros] * \
+                (1 - self.blending_mask[non_zeros]) + \
+                image_1[non_zeros]*self.blending_mask[non_zeros]
         else:
             image_0 = image_1
         return image_0
-
 
     def distances2probability(self, distances, PARM_truncation, PARM_attenuation):
 
         probabilities = 1 - distances / np.max(distances)
         probabilities *= (probabilities > PARM_truncation)
-        probabilities = pow(probabilities, PARM_attenuation) #attenuate the values
-        #check if we didn't truncate everything!
+        # attenuate the values
+        probabilities = pow(probabilities, PARM_attenuation)
+        # check if we didn't truncate everything!
         if np.sum(probabilities) == 0:
-            #then just revert it
+            # then just revert it
             probabilities = 1 - distances / np.max(distances)
-            probabilities *= (probabilities > PARM_truncation*np.max(probabilities)) # truncate the values (we want top truncate%)
+            # truncate the values (we want top truncate%)
+            probabilities *= (probabilities >
+                              PARM_truncation*np.max(probabilities))
             probabilities = pow(probabilities, PARM_attenuation)
-        probabilities /= np.sum(probabilities) #normalize so they add up to one
+        # normalize so they add up to one
+        probabilities /= np.sum(probabilities)
 
         return probabilities
-
