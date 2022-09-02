@@ -238,6 +238,9 @@ class Inpaint:
         return dist, ind
 
     def resolve(self):
+        '''
+        Start the inpainting.
+        '''
 
         for rect in self.rects:
             x0 = int(rect[0] - self.overlap_size)
