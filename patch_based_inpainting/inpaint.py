@@ -35,7 +35,7 @@ from skimage import exposure
 
 class Inpaint:
     '''
-    The Inpaint object contains will performed patch-based inpainting.
+    The Inpaint object will performed patch-based inpainting.
     Usage: create the object with parameters, call object.resolve().
 
     Parameters
@@ -48,6 +48,8 @@ class Inpaint:
         The size of one square patch.
     overlap_size : int
         The size of the overlap between patch.
+    training_area : tuple
+        The rectangle (x, y, width, height) of the area for the training. If None will use all the image.
     window_step : int
         The shape of the elementary n-dimensional orthotope of the rolling window view. If None will be autocomputed. Can lead to a RAM saturation if to small.
     mirror_hor : bool
@@ -61,11 +63,12 @@ class Inpaint:
 
     '''
 
-    def __init__(self, image, mask, patch_size, overlap_size, window_step = None, mirror_hor = True, mirror_vert = True, rotation = None, method="blend"):
+    def __init__(self, image, mask, patch_size, overlap_size, training_area = None, window_step = None, mirror_hor = True, mirror_vert = True, rotation = None, method="blend"):
 
         self.image = np.float32(image)
         self.patch_size = patch_size
         self.overlap_size = overlap_size
+        self.training_area = training_area
         self.mirror_hor = mirror_hor
         self.mirror_vert = mirror_vert
         self.rotation = rotation
@@ -80,7 +83,6 @@ class Inpaint:
         self.rects = []
         self.mask = np.uint8(mask)
         self.compute_rect()
-
 
         self.example_patches = self.compute_patches()
         self.kdtree = self.init_KDtrees()
@@ -120,11 +122,18 @@ class Inpaint:
 
         kernel_size = self.patch_size + 2 * self.overlap_size
         self.image[self.mask > 0] = np.nan
-        result = view_as_windows(self.image, [kernel_size, kernel_size, 3] , self.window_step)
+
+        if self.training_area is not None:
+            result = view_as_windows(self.image[self.training_area[1] : self.training_area[1] + self.training_area[3], self.training_area[0] : self.training_area[0] + self.training_area[2], :], [kernel_size, kernel_size, 3] , self.window_step)
+        else:
+            result = view_as_windows(self.image, [kernel_size, kernel_size, 3] , self.window_step)
 
         if self.rotation is not None:
             for i in self.rotation:
-                rot = rotate(self.image, i)
+                if self.training_area is not None:
+                    rot = rotate(self.image[self.training_area[1] : self.training_area[1] + self.training_area[3], self.training_area[0] : self.training_area[0] + self.training_area[2], :], i)
+                else:
+                    rot = rotate(self.image, i)
                 result = np.concatenate((result, view_as_windows(rot, [kernel_size, kernel_size, 3] , self.window_step)))
 
         shape = np.shape(result)

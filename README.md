@@ -17,6 +17,8 @@ Based on "Image Quilting for Texture Synthesis and Transfer" and "Real-Time Text
         The size of one square patch.
     overlap_size : int
         The size of the overlap between patch.
+    training_area : tuple
+        The rectangle (x, y, width, height) of the area for the training. If None will use all the image.
     window_step : int
         The shape of the elementary n-dimensional orthotope of the rolling window view. If None will be autocomputed. Can lead to a RAM saturation if to small.
     mirror_hor : bool
