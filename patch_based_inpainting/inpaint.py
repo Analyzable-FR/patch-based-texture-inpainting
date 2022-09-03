@@ -138,9 +138,9 @@ class Inpaint:
             for i in self.rotation:
                 if self.training_area is not None:
                     rot = rotate(self.image[self.training_area[1]: self.training_area[1] + self.training_area[3],
-                                 self.training_area[0]: self.training_area[0] + self.training_area[2], :], i)
+                                 self.training_area[0]: self.training_area[0] + self.training_area[2], :], i, mode="symmetric")
                 else:
-                    rot = rotate(self.image, i)
+                    rot = rotate(self.image, i, mode="symmetric")
                 result = np.concatenate((result, view_as_windows(
                     rot, [kernel_size, kernel_size, 3], self.window_step)))
 
@@ -303,8 +303,6 @@ class Inpaint:
 
                     dist, ind = self.find_most_similar_patches(
                         overlap_top, overlap_bottom, overlap_left, overlap_right)
-
-                    # TODO: check if is not a mirror and check precision of overlapping at right and bottom edges
 
                     if dist is not None:
                         probabilities = self.distances2probability(
