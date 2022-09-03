@@ -66,6 +66,7 @@ class Inpaint:
     def __init__(self, image, mask, patch_size, overlap_size, training_area=None, window_step=None, mirror_hor=True, mirror_vert=True, rotation=None, method="blend"):
 
         self.image = np.float32(image)
+        self.original_shape = self.image.shape
         self.patch_size = patch_size
         self.overlap_size = overlap_size
         self.training_area = training_area
@@ -109,14 +110,17 @@ class Inpaint:
             rect[2] = min(rect[2], self.image.shape[1] - rect[0])
             rect[3] = min(rect[3], self.image.shape[0] - rect[1])
             win = np.asarray(
-                [(i+1)*self.patch_size + i*self.overlap_size for i in range(self.image.shape[0])])
-            rect[2] = win[np.where((win >= rect[2]) == True)[0][0]]
-            rect[3] = win[np.where((win >= rect[3]) == True)[0][0]]
+                [(i+1)*self.patch_size + i*self.overlap_size for i in range(self.image.shape[1])])
+            rect[2] = win[np.where(win >= rect[2])[0][0]]
+            rect[3] = win[np.where(win >= rect[3])[0][0]]
 
+            # Pad the image if last cell finish outside the original image
             if rect[2] > self.image.shape[1] - rect[0]:
-                rect[2] = win[np.where((win >= rect[2]) == True)[0][0] - 2]
+                self.image = np.pad(self.image, [(0, rect[0] + rect[2]), (0, rect[0] + rect[2]), (0, 0)], mode="symmetric")
+                self.mask = np.pad(self.mask, [(0, rect[0] + rect[2]), (0, rect[0] + rect[2])])
             if rect[3] > self.image.shape[0] - rect[1]:
-                rect[3] = win[np.where((win >= rect[3]) == True)[0][0] - 2]
+                self.image = np.pad(self.image, [(0, rect[3] + rect[1]), (0, rect[3] + rect[1]), (0, 0)], mode="symmetric")
+                self.mask = np.pad(self.mask, [(0, rect[3] + rect[1]), (0, rect[3] + rect[1])])
 
             self.rects.append(rect)
             self.mask[rect[1]:rect[1] + rect[3],
@@ -317,6 +321,8 @@ class Inpaint:
                     x0 += self.patch_size + self.overlap_size
                 x0 = rect[0] - self.overlap_size
                 y0 += self.patch_size + self.overlap_size
+        if self.image.shape != self.original_shape:
+            self.image = self.image[:self.original_shape[0], :self.original_shape[1],:]
         return np.uint8(self.image)
 
     def merge(self, image_0, image_1, method="linear"):
