@@ -81,7 +81,7 @@ class Inpaint:
         self.iter = 0
 
         self.rects = []
-        self.mask = np.uint8(mask)
+        self.mask = np.copy(np.uint8(mask))
         self.compute_rect()
 
         self.example_patches = self.compute_patches()
