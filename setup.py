@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="patch_based_inpainting",
-    version="0.0.1",
+    version="0.0.2",
     author="Analyzable",
     author_email="business@gallois.cc",
     description="Patch-based inpainting.",
@@ -12,7 +12,7 @@ setup(
         'imageio',
         'numpy',
         'matplotlib',
-        'scikit-learn',
+        'scipy',
         'scikit-image',
         'opencv-python'],
     license='MIT',

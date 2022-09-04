@@ -2,6 +2,7 @@ import cv2
 from patch_based_inpainting.inpaint import *
 import matplotlib.pyplot as plt
 import imageio
+import time
 
 
 img = cv2.imread("imgs/1.jpg")
@@ -12,9 +13,11 @@ img[40:80, 40:80, :] = 0
 rect = np.zeros_like(img)
 rect[40:80, 40:80, :] = 255
 
+start_time = time.time()
 pbts = Inpaint(img, rect[:, :, 0], patchSize, overlapSize, window_step=2,
                mirror_hor=True, mirror_vert=True, method="blend", rotation=[60, 120])
 inpaint = pbts.resolve()
+print("--- %s seconds ---" % (time.time() - start_time))
 
 images = [img, inpaint]
 imageio.mimsave('assets/1.gif', images, duration=2.5)

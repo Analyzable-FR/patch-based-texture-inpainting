@@ -1,6 +1,6 @@
 imageio~=2.0
 matplotlib~=3.0
 numpy~=1.0
-scikit_learn~=1.0
+scipy
 scikit-image~=0.0
 opencv-python~=4.0

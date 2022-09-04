@@ -26,7 +26,7 @@ import cv2
 from math import floor, ceil
 from random import randint
 
-from sklearn.neighbors import KDTree
+from scipy.spatial import cKDTree as KDTree
 from skimage.util.shape import view_as_windows
 from skimage.filters import gaussian
 from skimage.transform import resize, rotate
@@ -214,17 +214,17 @@ class Inpaint:
         flatten_combined_2_bis_1 = self.get_combined_overlap(
             [flatten_left, flatten_right])
 
-        tree_top = KDTree(flatten_top, leaf_size=leaf_size)
-        tree_left = KDTree(flatten_left, leaf_size=leaf_size)
-        tree_combined_4 = KDTree(flatten_combined_4, leaf_size=leaf_size)
-        tree_combined_3 = KDTree(flatten_combined_3, leaf_size=leaf_size)
+        tree_top = KDTree(flatten_top, leafsize=leaf_size)
+        tree_left = KDTree(flatten_left, leafsize=leaf_size)
+        tree_combined_4 = KDTree(flatten_combined_4, leafsize=leaf_size)
+        tree_combined_3 = KDTree(flatten_combined_3, leafsize=leaf_size)
         tree_combined_3_bis = KDTree(
-            flatten_combined_3_bis, leaf_size=leaf_size)
-        tree_combined_2 = KDTree(flatten_combined_2, leaf_size=leaf_size)
+            flatten_combined_3_bis, leafsize=leaf_size)
+        tree_combined_2 = KDTree(flatten_combined_2, leafsize=leaf_size)
         tree_combined_2_bis = KDTree(
-            flatten_combined_2_bis, leaf_size=leaf_size)
+            flatten_combined_2_bis, leafsize=leaf_size)
         tree_combined_2_bis_1 = KDTree(
-            flatten_combined_2_bis_1, leaf_size=leaf_size)
+            flatten_combined_2_bis_1, leafsize=leaf_size)
         return {"t": tree_top, "l": tree_left, "tblr": tree_combined_4, "tlr": tree_combined_3, "tl": tree_combined_2, "tbl": tree_combined_3_bis, "tb": tree_combined_2_bis, "lr": tree_combined_2_bis_1}
 
     def find_most_similar_patches(self, overlap_top, overlap_bottom, overlap_left, overlap_right, k=5):
