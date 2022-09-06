@@ -65,7 +65,10 @@ class Inpaint:
 
     def __init__(self, image, mask, patch_size, overlap_size, training_area=None, window_step=None, mirror_hor=True, mirror_vert=True, rotation=None, method="blend"):
 
+        self.max_val = np.max(image)
+        self.dtype = image.dtype
         self.image = np.float32(image)
+        self.image /= self.max_val
         self.original_shape = self.image.shape
         self.patch_size = patch_size
         self.overlap_size = overlap_size
@@ -323,7 +326,10 @@ class Inpaint:
                 y0 += self.patch_size + self.overlap_size
         if self.image.shape != self.original_shape:
             self.image = self.image[:self.original_shape[0], :self.original_shape[1],:]
-        return np.uint8(self.image)
+
+        self.image *= self.max_val
+        self.image = self.image.astype(self.dtype, copy=False)
+        return self.image
 
     def merge(self, image_0, image_1, method="linear"):
         non_zeros = ~np.isnan(image_0)  # Overlap area
