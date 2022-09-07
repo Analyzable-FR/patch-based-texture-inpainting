@@ -48,8 +48,8 @@ class Inpaint:
         The size of one square patch.
     overlap_size : int
         The size of the overlap between patch.
-    training_area : tuple
-        The rectangle (x, y, width, height) of the area for the training. If None will use all the image.
+    training_area : array
+        The mask of the same size as the image, all value > 0 will be used for training.
     window_step : int
         The shape of the elementary n-dimensional orthotope of the rolling window view. If None will be autocomputed. Can lead to a RAM saturation if to small.
     mirror_hor : bool
@@ -135,19 +135,16 @@ class Inpaint:
         self.image[self.mask > 0] = np.nan
 
         if self.training_area is not None:
-            result = view_as_windows(self.image[self.training_area[1]: self.training_area[1] + self.training_area[3], self.training_area[0]
-                                     : self.training_area[0] + self.training_area[2], :], [kernel_size, kernel_size, 3], self.window_step)
-        else:
-            result = view_as_windows(
+            tmp = self.image[self.training_area == 0]
+            self.image[self.training_area == 0] = np.nan
+
+
+        result = view_as_windows(
                 self.image, [kernel_size, kernel_size, 3], self.window_step)
 
         if self.rotation is not None:
             for i in self.rotation:
-                if self.training_area is not None:
-                    rot = rotate(self.image[self.training_area[1]: self.training_area[1] + self.training_area[3],
-                                 self.training_area[0]: self.training_area[0] + self.training_area[2], :], i, mode="symmetric")
-                else:
-                    rot = rotate(self.image, i, mode="symmetric")
+                rot = rotate(self.image, i, mode="symmetric")
                 result = np.concatenate((result, view_as_windows(
                     rot, [kernel_size, kernel_size, 3], self.window_step)))
 
@@ -174,6 +171,9 @@ class Inpaint:
             for i in range(self.total_patches_count):
                 vert_result[i] = result[i][:, ::-1, :]
             result = np.concatenate((result, vert_result))
+
+        if self.training_area is not None:
+            self.image[self.training_area == 0] = tmp
         return result
 
     def get_combined_overlap(self, overlaps):

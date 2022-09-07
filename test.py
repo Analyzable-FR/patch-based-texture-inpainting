@@ -81,7 +81,8 @@ img[900:1000, 500:1300, :] = 0
 rect = np.zeros_like(img)
 rect[500:600, 500:1300, :] = 255
 rect[900:1000, 500:1300, :] = 255
-training = (0, 400, 1500, 1500)
+training = np.zeros_like(img)
+training[400:1500, 0:1500] = 1
 
 pbts = Inpaint(img, rect[:, :, 0], patchSize, overlapSize, training_area=training,
                window_step=60, mirror_hor=True, mirror_vert=True, rotation=[180])

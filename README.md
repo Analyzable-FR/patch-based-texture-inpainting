@@ -24,8 +24,8 @@ pip install patch-based-inpainting
         The size of one square patch.
     overlap_size : int
         The size of the overlap between patch.
-    training_area : tuple
-        The rectangle (x, y, width, height) of the area for the training. If None will use all the image.
+    training_area : array
+        The mask of the same size as the image, all value > 0 will be used for training.
     window_step : int
         The shape of the elementary n-dimensional orthotope of the rolling window view. If None will be autocomputed. Can lead to a RAM saturation if to small.
     mirror_hor : bool
