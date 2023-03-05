@@ -311,7 +311,11 @@ class Inpaint:
                     dist, ind = self.find_most_similar_patches(
                         overlap_top, overlap_bottom, overlap_left, overlap_right)
 
-                    if dist is not None:
+                    # Remove inf values
+                    ind = ind[~np.isinf(dist)]
+                    dist = dist[~np.isinf(dist)]
+
+                    if dist is not None and dist.size != 0:
                         probabilities = self.distances2probability(
                             dist, self.PARM_truncation, self.PARM_attenuation)
                         patch_id = np.random.choice(ind, 1, p=probabilities)
@@ -358,13 +362,6 @@ class Inpaint:
         probabilities = pow(probabilities, PARM_attenuation)
         # check if we didn't truncate everything!
         if np.sum(probabilities) == 0:
-            # then just revert it
-            probabilities = 1 - distances / np.max(distances)
-            # truncate the values (we want top truncate%)
-            probabilities *= (probabilities >
-                              PARM_truncation*np.max(probabilities))
-            probabilities = pow(probabilities, PARM_attenuation)
-        # normalize so they add up to one
-        probabilities /= np.sum(probabilities)
-
-        return probabilities
+            return probabilities + 1/len(probabilities)
+        else:
+            return probabilities / np.sum(probabilities)

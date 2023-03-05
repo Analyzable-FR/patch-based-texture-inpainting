@@ -4,6 +4,13 @@ import matplotlib.pyplot as plt
 import imageio
 import time
 
+# Test for nan and inf in dist and proba
+img = cv2.imread("imgs/5.jpg")
+mask = cv2.imread("imgs/5_mask.jpg")
+start_time = time.time()
+pbts = Inpaint(img, mask[:, :, 0], 20, 5, method="blend")
+inpaint = pbts.resolve()
+print("--- %s seconds ---" % (time.time() - start_time))
 
 img = cv2.imread("imgs/1.jpg")
 patchSize = 10  # size of the patch (without the overlap)
