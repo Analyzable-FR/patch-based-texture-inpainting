@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="patch_based_inpainting",
-    version="0.0.2",
+    version="0.0.3",
     author="Analyzable",
     author_email="business@gallois.cc",
     description="Patch-based inpainting.",
